@@ -1,0 +1,222 @@
+from random import shuffle
+from pprint import pprint
+TIPOS = ["pica", "trebol", "corazon", "diamante"]
+MANOS = [
+    "royal-flush",
+    "straight-flush",
+    "four-of-a-kind",
+    "full-house",
+    "flush",
+    "straight",
+    "three-of-a-kind",
+    "two-pair",
+    "one-pair",
+    "high-card",
+]
+
+class Carta:
+    def __init__(self, tipo: str, valor: int):
+        assert(tipo in TIPOS)
+        assert(1 <= valor <= 13)
+        self.tipo = tipo
+        self.valor = valor
+
+    def __repr__(self):
+        valor_str = str(self.valor)
+        if (self.valor == 11):
+            valor_str = "J"
+        elif (self.valor == 12):
+            valor_str = "Q"
+        elif (self.valor == 13):
+            valor_str = "K"
+        elif (self.valor == 1):
+            valor_str = "A"
+        return "{}|{}".format(self.tipo, valor_str)
+
+class Mano:
+    def __init__(self, c1: Carta, c2: Carta, c3: Carta, c4: Carta, c5: Carta):
+        self.mano = (c1, c2, c3, c4, c5)
+    
+    def __repr__(self):
+        return "Mano: {}, {}, {}, {}, {}" \
+            .format(*self.mano)
+    
+    def get_valores(self) -> dict:
+        x = {i: 0 for i in range(1, 14)}
+        for carta in self.mano:
+            x[carta.valor] += 1
+        
+        return x
+    
+    def get_valores_list(self) -> list[int]:
+        """Returns list with dict values != 0"""
+        target = []
+        for k, v in self.get_valores().items():
+            if v != 0: target.append(v)
+
+        target.sort()
+        return target
+    
+    def get_tipos(self) -> dict:
+        x = {i: 0 for i in TIPOS}
+        for carta in self.mano:
+            x[carta.tipo] += 1
+
+        return x
+    
+    def get_info(self) -> tuple[dict, dict]:
+        """Devuelve un tuple con tipos y valores, respectivamente"""
+        return (self.get_tipos(), self.get_valores())
+
+    @classmethod
+    def crear_mano_aleatoria(cls):
+        mazo = []
+        for valor in range(1, 14):
+            for tipo in TIPOS:
+                mazo.append(Carta(tipo, valor))
+
+        shuffle(mazo)
+
+        return Mano(mazo[0], mazo[1], mazo[2], mazo[3], mazo[4])
+
+
+#! HAND CHECKERS
+
+def is_four_of_a_kind(mano: Mano) -> tuple[bool, str]:
+    tipos, valores = mano.get_info()
+    for _, count in valores.items():
+        if count == 4: return (True, "four-of-a-kind")
+    
+    return (False, "none")
+
+def is_flush(mano: Mano) -> tuple[bool, str]:
+    tipos, valores = mano.get_info()
+    for _, count in tipos.items():
+        if count == 5: return (True, "flush")
+
+    return (False, "none")
+
+def is_straight(mano: Mano) -> tuple[bool, str]:
+    tipos, valores = mano.get_info()
+    target = []
+    for number, count in valores.items():
+        if count != 0: target.append(number)
+
+    if len(target) != 5: return (False, "none")
+    if 1 in target and 2 not in target:
+        target.append(14)
+        target.sort()
+        target.pop(0)
+
+    is_good = True
+    for i, value in enumerate(target):
+        if i == 0: continue
+        if value != target[i-1] + 1: is_good = False
+
+    if is_good: return (True, "straight")
+    else: return (False, "none")
+
+def is_straight_flush(mano: Mano) -> tuple[bool, str]:
+    b1, _ = is_straight(mano)
+    b2, _ = is_flush(mano)
+
+    if b1 and b2:
+        return (True, "straight-flush")
+    else:
+        return (False, "none")
+    
+def is_royal_flush(mano: Mano) -> tuple[bool, str]:
+    b, _ = is_straight_flush(mano)
+    if not b:
+        return (False, "none")
+    
+    # Is straight flush
+    tipos, valores = mano.get_info()
+    target = []
+
+    for number, count in valores.items():
+        if count != 0: target.append(number)
+
+    if 1 in target \
+        and 10 in target \
+        and 11 in target \
+        and 12 in target \
+        and 13 in target:
+        return (True, "royal-flush")
+    
+    else:
+        return (False, "none")
+
+def is_full_house(mano: Mano) -> tuple[bool, str]:
+    target = mano.get_valores_list()
+
+    if len(target) == 2 and target[0] == 2 and target[1] == 3:
+        return (True, "full-house")
+    else:
+        return (False, "none")
+    
+def is_three_of_a_kind(mano: Mano) -> tuple[bool, str]:
+    target = mano.get_valores_list()
+
+    if 2 not in target and 3 in target:
+        return (True, "three-of-a-kind")
+    else:
+        return (False, "none")
+    
+def is_two_pair(mano: Mano) -> tuple[bool, str]:
+    target = mano.get_valores_list()
+
+    if len(target) == 3 and target[1] == 2 and target[2] == 2:
+        return (True, "two-pair")
+    else:
+        return (False, "none")
+    
+def is_one_pair(mano: Mano) -> tuple[bool, str]:
+    target = mano.get_valores_list()
+    if 2 in target:
+        return (True, "one-pair")
+    else:
+        return (False, "none")
+    
+def is_high_card(mano: Mano) -> tuple[bool, str]:
+    return (True, "high-card")
+
+def get_nombre_mano(mano: Mano) -> str:
+    list_manos = [
+        is_royal_flush,
+        is_straight_flush,
+        is_four_of_a_kind,
+        is_full_house,
+        is_flush,
+        is_straight,
+        is_three_of_a_kind,
+        is_two_pair,
+        is_one_pair,
+        is_high_card,
+    ]
+
+    target_str = ""
+    for f in list_manos:
+        b, hand = f(mano)
+        if b:
+            target_str = hand
+            break
+
+    assert(target_str in MANOS)
+    return target_str
+
+def print_manos(my_dict: dict):
+    for mano in MANOS:
+        print("{}: {}".format(mano, my_dict[mano]))
+
+def main():
+    hist = {key: 0 for key in MANOS}
+    for i in range(100000):
+        mano = Mano.crear_mano_aleatoria()
+        nombre = get_nombre_mano(mano)
+        hist[nombre] += 1
+
+    print_manos(hist)
+
+if __name__ == "__main__":
+    main()
